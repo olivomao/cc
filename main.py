@@ -1,4 +1,4 @@
-import tensorflow as tf
+#import tensorflow as tf
 import numpy as np
 np.random.seed(0)
 import random
@@ -17,7 +17,13 @@ simTypeSize = 4
 items [[val1_list, val1_description],
        [val2_list, val2_description],
        ...]
+
 output to output_fig
+
+draw hist plot where per curve corresponds
+to the histogram of val_list, and is labeled by
+ val_description
+
 '''
 def draw_histogram(items,
                    output_fig):
@@ -38,6 +44,14 @@ def draw_histogram(items,
     print('draw_histogram %s drawn'%output_fig)
     return
 
+'''
+a distance class that calculates dist b/w
+two strings a, b
+
+the dist calc includes:
+- edit distance
+- misc (e.g. in cgk.py) ==> to be incorporated
+'''
 class Distance(object):
 
     def __init__(self):
@@ -51,7 +65,9 @@ class Distance(object):
         #return float(editdistance.eval(a,b))/(len(a)+len(b))
         return editdistance.eval(a,b)
 
-
+'''
+an indel channel
+'''
 class Channel(object):
 
     def __init__(self,
@@ -168,8 +184,6 @@ def init_R_list(L, N_iter=1):
 
     return R_list
 
-
-
 def main():
 
     print('main')
@@ -181,17 +195,13 @@ def main():
                  sub_rate=0.3)
     dist = Distance()
 
-    #### tf logging
-    #tf.reset_default_graph()
     '''
+    #tensorboard utilization (does not seem to work now)
     de_s_t1 = tf.get_variable(name='de_s_t1', shape=[N], trainable=False)
     tf.summary.histogram('de_s_t1', de_s_t1)
     merged = tf.summary.merge_all()
     writer = tf.summary.FileWriter('/data1/shunfu1/clustering_cgk_vs_edit/log/')
     '''
-    ####
-
-    #with tf.Session() as sess:
 
     d_s_t1_acc = []
     d_s_t2_acc = []
@@ -199,26 +209,40 @@ def main():
     d_cgk_s_t2_acc = []
 
     #fix a rand matrix
-    R_list = None #init_R_list(L, N_iter=1) 
+    R_list = init_R_list(L, N_iter=1) 
     pdb.set_trace()
 
-    fix_s = gen_s(L)
-    fix_t1 = ch.output(fix_s)
-    fix_t2 = ch.rand_remove_block(fix_s, 
-                                  dist.edit_dist(fix_s, fix_t1))
+    fix_sample = False # True
+    pdb.set_trace()
+    if fix_sample == True:
+	fix_s = gen_s(L)
+	fix_t1 = ch.output(fix_s)
+	fix_t2 = ch.rand_remove_block(fix_s, 
+				      dist.edit_dist(fix_s, fix_t1))
 
     for i in range(N):
-        s = fix_s #gen_s(L)
+	print(i)
+
+        if fix_sample == True:
+            s = fix_s
+        else:
+	    s = gen_s(L)
         print('s='+s)
 
-        t1 = fix_t1 #ch.output(s)
+        if fix_sample == True:
+	    t1 = fix_t1
+	else:
+	    t1 = ch.output(s)
         print('t1='+t1)
 
         d_s_t1 = dist.edit_dist(s,t1)
         d_s_t1_acc.append(d_s_t1)
         print('edit_dist(s,t1)=%d'%d_s_t1)
 
-        t2 = fix_t2 #ch.rand_remove_block(s, d_s_t1)
+        if fix_sample == True:
+	    t2 = fix_t2
+	else:
+	    t2 = ch.rand_remove_block(s, d_s_t1)
         d_s_t2 = dist.edit_dist(s,t2)
         d_s_t2_acc.append(d_s_t2)
         print('edit_dist(s,t2)=%d'%d_s_t2)
@@ -238,8 +262,8 @@ def main():
     draw_histogram([[d_cgk_s_t1_acc, 'de_cgk_s_t1'],
                     [d_cgk_s_t2_acc, 'de_cgk_s_t2']], 
                    'fig_cgk.png') 
-    #### dump log
     '''
+    # tensorbloard utilization (does not seem to work)
     summ, d_ = sess.run([merged, 
                         de_s_t1],
                         feed_dict={de_s_t1: np.asarray(d_acc)})
@@ -247,7 +271,6 @@ def main():
     print('')
     writer.add_summary(summ)#all samples considered at time 0
     '''
-    ####
 
     return
 
