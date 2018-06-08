@@ -98,7 +98,7 @@ class Channel(object):
 
     '''
     remove a block of length L from s (L<|s|)
-    the block can start at any pos of s
+    the block can start at any pos (<=Ls-L) of s
     '''
     def rand_remove_block(self, s, L):
         assert len(s)>L
@@ -108,6 +108,47 @@ class Channel(object):
         print('rand remove block: s=%s i=%d t=%s'%(s, i, t))
 
         return t
+
+    '''
+    add a block of length L into s
+    the block can start at any pos of s
+    '''
+    def rand_add_block(self, s, L):
+        i = random.randint(0, len(s)-1)
+        d = gen_s(L)
+        t = s[0:i]+d+s[i:len(s)]
+
+        print('rand add block: s=%s i=%d d=%s t=%s'%(s, i, d, t))
+        #pdb.set_trace() 
+        return t
+
+    def rand_flip_block(self, s, L):
+        def flip(st):
+            return ''.join('1' if x == '0' else '0' for x in st)
+        assert len(s)>L
+        i = random.randint(0, len(s)-L) #[0, Ls-L]
+        t = s[0:i]+flip(s[i:i+L])+s[i+L:len(s)] 
+        print('rand flip block: s=%s i=%d t=%s'%(s, i, t))
+        return t
+
+    '''
+    depending on tp ('add', 'remove', 'flip')
+    rand add/remove/flip a block of len L starting from any
+    possible loc of s
+    '''
+    def rand_block(self, s, L, tp):
+        if tp == 'add':
+            t = self.rand_add_block(s, L)
+        elif tp == 'remove':
+            t = self.rand_remove_block(s, L)
+        elif tp == 'flip':
+            t = self.rand_flip_block(s, L)
+        else:
+            print('rand_block unknown type: %s'%tp)
+            pdb.set_trace()
+            t = None
+        return t
+    
 
     '''
     simulate a binary seq through a long read channel
@@ -187,14 +228,21 @@ def init_R_list(L, N_iter=1):
 def main():
 
     print('main')
-
+    ######## configs
     N = 2000
     L = 100
     ch = Channel(ins_rate=0.0,
-                 del_rate=0.0,
-                 sub_rate=0.3)
+                 del_rate=0.0, #0.0,
+                 sub_rate=0.3) #0.3)
+    t2_type = 'flip' #remove, add, flip
     dist = Distance()
 
+    #fix a rand matrix
+    R_list = None #init_R_list(L, N_iter=1) 
+
+    fix_sample = True #False # True
+    ######## configs end
+ 
     '''
     #tensorboard utilization (does not seem to work now)
     de_s_t1 = tf.get_variable(name='de_s_t1', shape=[N], trainable=False)
@@ -208,31 +256,26 @@ def main():
     d_cgk_s_t1_acc = []
     d_cgk_s_t2_acc = []
 
-    #fix a rand matrix
-    R_list = init_R_list(L, N_iter=1) 
-    pdb.set_trace()
-
-    fix_sample = False # True
-    pdb.set_trace()
     if fix_sample == True:
-	fix_s = gen_s(L)
-	fix_t1 = ch.output(fix_s)
-	fix_t2 = ch.rand_remove_block(fix_s, 
-				      dist.edit_dist(fix_s, fix_t1))
+        fix_s = gen_s(L)
+        fix_t1 = ch.output(fix_s)
+        fix_t2 = ch.rand_block(fix_s,
+                               dist.edit_dist(fix_s, fix_t1),
+                               t2_type)
 
     for i in range(N):
-	print(i)
+        print(i)
 
         if fix_sample == True:
             s = fix_s
         else:
-	    s = gen_s(L)
+            s = gen_s(L)
         print('s='+s)
 
         if fix_sample == True:
-	    t1 = fix_t1
-	else:
-	    t1 = ch.output(s)
+            t1 = fix_t1
+        else:
+            t1 = ch.output(s)
         print('t1='+t1)
 
         d_s_t1 = dist.edit_dist(s,t1)
@@ -240,9 +283,10 @@ def main():
         print('edit_dist(s,t1)=%d'%d_s_t1)
 
         if fix_sample == True:
-	    t2 = fix_t2
-	else:
-	    t2 = ch.rand_remove_block(s, d_s_t1)
+            t2 = fix_t2
+        else:
+            t2 = ch.rand_block(s, d_s_t1, t2_type)
+        print('t2='+t2)
         d_s_t2 = dist.edit_dist(s,t2)
         d_s_t2_acc.append(d_s_t2)
         print('edit_dist(s,t2)=%d'%d_s_t2)
